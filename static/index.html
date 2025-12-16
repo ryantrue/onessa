@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список лицензий</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!-- Общие ресурсы (Bootstrap, header/footer) подключаем централизованно -->
+	<script src="/layout.js" defer></script>
+	<script src="/1auth.js" defer></script>
+	<script src="/index.js" defer></script>
+</head>
+<body>
+<div data-include="header"></div>
+
+<main class="container-xxl py-4">
+    <header class="mb-3">
+        <h1 class="h3 mb-0"><i class="bi bi-key me-2"></i>Список лицензий</h1>
+    </header>
+
+    <div id="message" class="alert d-none" role="alert"></div>
+
+    <!-- Фильтры/статистика -->
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5">Фильтры</h2>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label" for="filter-search">Поиск по ключу или комментарию</label>
+                    <input type="text" id="filter-search" class="form-control" placeholder="Часть ключа или комментария...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="filter-user">Пользователь</label>
+                    <select id="filter-user" class="form-select">
+                        <option value="all">Все</option>
+                        <option value="unassigned">Только свободные</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button id="reload-btn" class="btn btn-outline-secondary w-100">Обновить</button>
+                </div>
+            </div>
+
+            <div id="stats" class="text-muted small mt-3"></div>
+        </div>
+    </section>
+
+    <!-- datalist для подсказок по пользователям -->
+    <datalist id="users-datalist"></datalist>
+
+    <!-- Таблица лицензий -->
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5">Лицензии</h2>
+            <p class="text-muted small">
+                Здесь делаем привязку ключей к пользователям, комментарии и компьютеры.
+                Пользователи подтягиваются из LDAP. Если нужного пользователя нет в списке — обновите страницу (или дождитесь синхронизации) и/или обратитесь к администратору доступа.
+            </p>
+
+            <div class="table-responsive">
+                <table id="licenses-table" class="table table-sm table-bordered align-middle mb-0"></table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div data-include="footer"></div>
+</body>
+</html>

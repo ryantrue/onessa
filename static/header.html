@@ -1,0 +1,50 @@
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top">
+  <div class="container-xxl">
+    <a class="navbar-brand fw-semibold d-flex align-items-center gap-2" href="/">
+      <i class="bi bi-shield-lock"></i>
+      <span>Onessa Helper</span>
+    </a>
+
+    <div class="d-flex align-items-center gap-2">
+      <button
+        id="theme-toggle"
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        aria-label="Тёмная тема"
+        title="Тёмная тема">
+        <i class="bi bi-moon-stars"></i>
+      </button>
+
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#mainNav"
+              aria-controls="mainNav" aria-label="Открыть меню">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+    </div>
+
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="mainNav" aria-labelledby="mainNavLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="mainNavLabel">Навигация</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Закрыть"></button>
+      </div>
+
+      <div class="offcanvas-body">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/"><i class="bi bi-key me-2"></i>Лицензии</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/import.html"><i class="bi bi-cloud-arrow-up me-2"></i>Импорт ключей</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/meetings.html"><i class="bi bi-calendar3 me-2"></i>Встречи</a>
+          </li>
+        </ul>
+
+        <div class="text-muted small mt-3">
+          <i class="bi bi-lock me-1"></i>внутренний сервис
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Встречи из Outlook</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Общие ресурсы (Bootstrap, header/footer) подключаем централизованно -->
+    <script src="/layout.js" defer></script>
+    <script src="/1auth.js" defer></script>
+    <script src="/meetings.js" defer></script>
+</head>
+<body>
+
+<div data-include="header"></div>
+
+<main class="container-xxl py-4">
+    <header class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-calendar3 me-2"></i>Встречи из Outlook</h1>
+            <div id="exportedAt" class="text-muted small mt-1"><small>Загрузка данных…</small></div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" type="button" onclick="reloadMeetings()"><i class="bi bi-arrow-clockwise me-2"></i>Обновить</button>
+        </div>
+    </header>
+
+    <div id="globalError" class="alert alert-danger d-none" role="alert"></div>
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div id="statusLine" class="text-muted small d-none">
+            <span id="statusCount"></span>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 small">
+            <span class="badge text-bg-success">Идёт</span>
+            <span class="badge text-bg-secondary">Ожидается / завершена</span>
+            <span class="badge text-bg-danger">Отменена</span>
+        </div>
+    </div>
+
+    <div id="list" class="d-flex flex-column gap-3"></div>
+
+    <div id="emptyState" class="alert alert-secondary d-none">
+        Пока нет встреч за ближайшие 30 дней.
+        <hr class="my-2" />
+        <div class="small">Убедитесь, что:</div>
+        <ul class="small mb-0">
+            <li>на рабочей станции с Outlook включены макросы;</li>
+            <li>запущен макрос <code>ExportUpcomingMeetingsToServer</code> (он должен дергать <code>/api/meetings/import</code>);</li>
+            <li>календарь содержит актуальные встречи.</li>
+        </ul>
+    </div>
+</main>
+
+<div data-include="footer"></div>
+
+</body>
+</html>
