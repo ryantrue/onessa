@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -80,9 +79,11 @@ func SetDataDir(dir string) {
 func InitDB(dir string) error {
 	SetDataDir(dir)
 
-	p := strings.TrimSpace(os.Getenv("DB_PATH"))
+	// Источник правды — Config.DBPath. На всякий случай читаем и из env напрямую,
+	// чтобы не ломать старые деплои, где DB_PATH используется без env.Parse.
+	p := strings.TrimSpace(getConfig().DBPath)
 	if p == "" {
-		p = filepath.Join(dir, "cryptopro.sqlite")
+		p = filepath.Join(dir, "onessa.sqlite")
 	} else if !filepath.IsAbs(p) {
 		p = filepath.Join(dir, p)
 	}

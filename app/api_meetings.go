@@ -8,16 +8,11 @@ import (
 	"github.com/ryantrue/onessa/internal/logging"
 )
 
-// =============== ТИПЫ ЗАПРОСОВ (встречи) ===============
-
 type ImportMeetingsRequest struct {
 	ExportedAt string    `json:"exported_at"`
 	Items      []Meeting `json:"items"`
 }
 
-// =============== API ВСТРЕЧИ ===============
-
-// Приём данных из Outlook (полный срез встреч — заменяем snapshot в БД)
 func handleImportMeetings(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		httpError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -54,7 +49,6 @@ func handleImportMeetings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, resp)
 }
 
-// Выдача встреч для страницы meetings.html
 func handleMeetingsState(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httpError(w, "method not allowed", http.StatusMethodNotAllowed)

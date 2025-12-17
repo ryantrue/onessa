@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -29,6 +28,8 @@ func ldapUsersFilter() string {
 	if f := strings.TrimSpace(c.LDAPUsersFilter); f != "" {
 		return f
 	}
+	// Дефолт под AD: все пользовательские объекты (без computer) и без отключённых учёток.
+	// Если каталог не AD — просто задайте LDAP_USERS_FILTER вручную.
 	return "(&(|(objectClass=user)(objectClass=person))(!(objectClass=computer))(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
 }
 
@@ -69,6 +70,7 @@ func pickName(e *ldap.Entry) string {
 	return ""
 }
 
+// FetchLDAPUsers читает пользователей из LDAP (обычно: участники ldapCfg.GroupDN).
 func FetchLDAPUsers(ctx context.Context) ([]LDAPUser, error) {
 	if !ldapEnabled() {
 		return nil, fmt.Errorf("ldap is not configured")
@@ -76,13 +78,14 @@ func FetchLDAPUsers(ctx context.Context) ([]LDAPUser, error) {
 
 	conn, err := ldap.DialURL(
 		ldapCfg.URL,
-		ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
+		ldap.DialWithTLSConfig(ldapTLSConfig()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ldap dial: %w", err)
 	}
 	defer conn.Close()
 
+	// service bind (если задан)
 	if ldapCfg.BindDN != "" {
 		if err := conn.Bind(ldapCfg.BindDN, ldapCfg.BindPassword); err != nil {
 			return nil, fmt.Errorf("ldap bind (service): %w", err)
@@ -100,6 +103,7 @@ func FetchLDAPUsers(ctx context.Context) ([]LDAPUser, error) {
 		nil,
 	)
 
+	// Пейджинг делает запрос устойчивее на больших каталогах.
 	sr, err := conn.SearchWithPaging(req, 500)
 	if err != nil {
 		return nil, fmt.Errorf("ldap search: %w", err)
@@ -126,7 +130,7 @@ func FetchLDAPComputers(ctx context.Context) ([]LDAPComputer, error) {
 
 	conn, err := ldap.DialURL(
 		ldapCfg.URL,
-		ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
+		ldap.DialWithTLSConfig(ldapTLSConfig()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ldap dial: %w", err)

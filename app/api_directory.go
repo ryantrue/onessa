@@ -4,7 +4,6 @@ import (
 	"net/http"
 )
 
-// handleUsersAll: полный список пользователей (active+inactive).
 func handleUsersAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httpError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -22,7 +21,6 @@ func handleUsersAll(w http.ResponseWriter, r *http.Request) {
 	}{Users: users})
 }
 
-// handleComputers: список ПК из LDAP, сохранённый в БД.
 func handleComputers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		httpError(w, "method not allowed", http.StatusMethodNotAllowed)

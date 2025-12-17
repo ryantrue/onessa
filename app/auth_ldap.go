@@ -3,11 +3,11 @@ package app
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,15 +36,11 @@ var (
 	ldapCfg LDAPConfig
 )
 
-// параметры сессий
-
 const (
 	sessionCookieName = "cp_session"
 
 	sessionTTL = 8 * time.Hour
 )
-
-// инициализация конфигурации из переменных окружения
 
 func initLDAPConfig() {
 	c := getConfig()
@@ -76,14 +72,10 @@ func ldapEnabled() bool {
 
 }
 
-// ---------- работа с сессиями ----------
-
 func sessionSecret() []byte {
 	return []byte(getConfig().SessionSecret)
 
 }
-
-// создаём значение cookie: base64( username|unixTime|base64(signature) )
 
 func makeSessionToken(username string, ts int64) string {
 
@@ -201,13 +193,11 @@ func setAuthCookie(w http.ResponseWriter, username string) {
 
 		SameSite: http.SameSiteLaxMode,
 
-		Secure: secure, // включить при https (можно через env SESSION_COOKIE_SECURE=true)
-
+		Secure: secure,
 	})
 
 }
 
-// normalizeLogin приводит логин к единому виду: обрезает DOMAIN\\ и @domain, делает lower.
 func normalizeLogin(username string) string {
 	u := strings.TrimSpace(username)
 	if idx := strings.Index(u, "\\"); idx != -1 && idx+1 < len(u) {
@@ -219,8 +209,6 @@ func normalizeLogin(username string) string {
 	return strings.ToLower(strings.TrimSpace(u))
 }
 
-// authAllowed — allowlist из ENV: AUTH_USERS.
-// Если список пустой — разрешаем всех (поведение для обратной совместимости).
 func authAllowed(username string) bool {
 	allowed := getConfig().AuthUsers
 	if len(allowed) == 0 {
@@ -254,16 +242,14 @@ func clearAuthCookie(w http.ResponseWriter) {
 
 }
 
-// ---------- LDAP-проверка пользователя ----------
+func staticFile(name string) string {
+	dir := strings.TrimSpace(getConfig().StaticDir)
+	if dir == "" {
+		dir = "./static"
+	}
+	return filepath.Join(dir, name)
+}
 
-// ldapCheckUser:
-
-//
-
-// 1. Нормализует логин (обрезает DOMAIN\\ и @domain).
-// 2. Проверяет allowlist из ENV (AUTH_USERS).
-// 3. Ищет DN пользователя.
-// 4. Проверяет пароль через bind от имени найденного пользователя.
 func ldapCheckUser(username, password string) (bool, error) {
 	if !ldapEnabled() {
 		return false, nil
@@ -284,7 +270,7 @@ func ldapCheckUser(username, password string) (bool, error) {
 
 	conn, err := ldap.DialURL(
 		ldapCfg.URL,
-		ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: true}), // для ldaps:// в бою лучше сделать нормальный trust
+		ldap.DialWithTLSConfig(ldapTLSConfig()),
 	)
 	if err != nil {
 		logging.Errorf("ldapCheckUser: dial error: %v", err)
@@ -292,7 +278,6 @@ func ldapCheckUser(username, password string) (bool, error) {
 	}
 	defer conn.Close()
 
-	// Биндимся сервисной учёткой (если задано)
 	if ldapCfg.BindDN != "" {
 		if err := conn.Bind(ldapCfg.BindDN, ldapCfg.BindPassword); err != nil {
 			logging.Errorf("ldapCheckUser: service bind error: %v", err)
@@ -340,8 +325,6 @@ func ldapCheckUser(username, password string) (bool, error) {
 	return true, nil
 }
 
-// ---------- HTTP-уровень: middleware и /login ----------
-
 func safeNext(next string) string {
 
 	if next == "" {
@@ -350,23 +333,17 @@ func safeNext(next string) string {
 
 	}
 
-	// запрещаем внешние редиректы
-
 	if strings.HasPrefix(next, "http://") || strings.HasPrefix(next, "https://") {
 
 		return "/"
 
 	}
 
-	// должен быть относительный путь
-
 	if !strings.HasPrefix(next, "/") {
 
 		return "/"
 
 	}
-
-	// защита от "//evil.com"
 
 	if strings.HasPrefix(next, "//") {
 
@@ -394,8 +371,6 @@ func redirectToLogin(w http.ResponseWriter, r *http.Request, next, errMsg string
 
 }
 
-// public для /login: даём доступ к общим фрагментам/скриптам шаблона
-
 func isPublicStaticForLogin(path string) bool {
 
 	switch path {
@@ -412,43 +387,24 @@ func isPublicStaticForLogin(path string) bool {
 
 }
 
-// Разрешаем "загрузку" в API без LDAP/сессии,
-
-// но "читать" (GET/HEAD) — нельзя.
-
 func isWriteAPIWithoutAuth(r *http.Request) bool {
-
 	if !strings.HasPrefix(r.URL.Path, "/api/") {
-
 		return false
-
 	}
-
-	// чтение — блокируем (требуем сессию)
 
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-
 		return false
-
 	}
 
-	// всё остальное (POST/PUT/PATCH/DELETE) — пропускаем без авторизации
+	token := strings.TrimSpace(getConfig().WriteAPIToken)
+	if token == "" {
+		logging.Warnf("WRITE_API_TOKEN is empty: write /api/* endpoints are public (legacy mode)")
+		return true
+	}
 
-	return true
-
+	got := strings.TrimSpace(r.Header.Get("X-API-Token"))
+	return got != "" && got == token
 }
-
-// authMiddleware:
-
-//
-
-//   - пропускает /healthz, /login, /logout и ресурсы шаблона для login;
-
-//   - разрешает "write" запросы на /api/* без LDAP/сессии;
-
-//   - для остальных путей требует валидную сессию;
-
-//   - если сессии нет — редиректит на /login?next=<исходный путь>.
 
 func authMiddleware(next http.Handler) http.Handler {
 
@@ -464,8 +420,6 @@ func authMiddleware(next http.Handler) http.Handler {
 
 		path := r.URL.Path
 
-		// публичные роуты
-
 		if path == "/healthz" || path == "/login" || path == "/logout" || isPublicStaticForLogin(path) {
 
 			next.ServeHTTP(w, r)
@@ -474,8 +428,6 @@ func authMiddleware(next http.Handler) http.Handler {
 
 		}
 
-		// write API без авторизации
-
 		if isWriteAPIWithoutAuth(r) {
 
 			next.ServeHTTP(w, r)
@@ -483,8 +435,6 @@ func authMiddleware(next http.Handler) http.Handler {
 			return
 
 		}
-
-		// всё остальное — только сессия
 
 		if username, ok := currentUsername(r); ok {
 
@@ -506,12 +456,6 @@ func authMiddleware(next http.Handler) http.Handler {
 
 }
 
-// handleLogin обрабатывает GET/POST /login.
-
-// GET  — отдаёт статическую страницу ./static/login.html (с общим шаблоном через layout.js)
-
-// POST — проверяет LDAP и ставит cookie.
-
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
@@ -519,8 +463,6 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 
 		next := safeNext(r.URL.Query().Get("next"))
-
-		// если уже авторизован — сразу туда, куда просили
 
 		if _, ok := currentUsername(r); ok {
 
@@ -532,7 +474,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Cache-Control", "no-store")
 
-		http.ServeFile(w, r, "./static/login.html")
+		http.ServeFile(w, r, staticFile("login.html"))
 
 	case http.MethodPost:
 
@@ -581,8 +523,6 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
-
-// handleLogout: очистка сессии и редирект на /login.
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 

@@ -23,44 +23,39 @@ func main() {
 		logging.Fatalf("cannot parse env: %v", err)
 	}
 
+	logging.Init(logging.Options{Level: cfg.LogLevel, Format: cfg.LogFormat})
+
 	if err := os.MkdirAll(cfg.DataDir, 0o755); err != nil {
 		logging.Fatalf("cannot create data dir %s: %v", cfg.DataDir, err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		logging.Warnf("shutdown signal received")
-		cancel()
-	}()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	if err := app.Init(ctx, cfg); err != nil {
 		logging.Warnf("cannot load data: %v", err)
 	}
 
-	handler := app.NewHTTPHandler()
+	handler := app.NewHTTPHandler(cfg)
 
-	server := &http.Server{
-		Addr:         cfg.HTTPAddr,
-		Handler:      handler,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 20 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	srv := &http.Server{
+		Addr:              cfg.HTTPAddr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	go func() {
 		<-ctx.Done()
-		ctxTimeout, cancelTimeout := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelTimeout()
-		_ = server.Shutdown(ctxTimeout)
+		ctxTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctxTimeout)
 	}()
 
-	logging.Infof("starting server on %s (DATA_DIR=%s)", cfg.HTTPAddr, cfg.DataDir)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	logging.Infof("starting server on %s (DATA_DIR=%s STATIC_DIR=%s)", cfg.HTTPAddr, cfg.DataDir, cfg.StaticDir)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logging.Fatalf("server error: %v", err)
 	}
 }

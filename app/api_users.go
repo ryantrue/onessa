@@ -8,8 +8,6 @@ import (
 	"github.com/ryantrue/onessa/internal/logging"
 )
 
-// =============== ТИПЫ ЗАПРОСОВ (пользователи/лицензии) ===============
-
 type AssignRequest struct {
 	UserID    int `json:"user_id"`
 	LicenseID int `json:"license_id"`
