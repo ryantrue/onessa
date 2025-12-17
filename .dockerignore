@@ -1,0 +1,17 @@
+.git
+.gitignore
+**/*.md
+
+# runtime data
+/data
+
+# build artifacts
+/bin
+
+# node
+web/node_modules
+web/dist
+web/build
+
+# local env
+.env

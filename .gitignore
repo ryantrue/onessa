@@ -6,7 +6,6 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
-/data/
 
 # Binaries for programs and plugins
 *.exe
@@ -30,9 +29,6 @@ profile.cov
 # Go workspace file
 go.work
 go.work.sum
-
-# env file
-.env
 
 # Editor/IDE
 .idea/
